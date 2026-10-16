@@ -1,0 +1,6 @@
+{
+  "comment": "Sizes are gzip, in kilobytes. 'initial' is everything the first page load must download (scripts + stylesheets named in index.html). Raise a number only on purpose, and say why in the pull request.",
+  "initialJs": 310,
+  "initialCss": 14,
+  "largestLazyChunk": 150
+}

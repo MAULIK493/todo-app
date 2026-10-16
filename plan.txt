@@ -1,0 +1,123 @@
+# Plan: Extraordinary Todo + Notes App (Web PWA, cloud backend)
+
+## Context
+Greenfield project in `/Users/maulikkesarwani/Desktop/TODO App` (empty, not a git repo). Goal: a todo app with all standard features, support for a very large number of todos, a reward system, a built-in notes app, named workspaces (personal/professional/etc.) shared by todos and notes, and lockable private workspaces (PIN / pattern). More features will be added later, so the architecture must be extensible.
+
+Decisions made: **Web app (PWA)**, **cloud backend from day one**.
+
+## Tech stack (recommended)
+- **Frontend:** React + TypeScript + Vite, Tailwind CSS, shadcn/ui, TanStack Query (server state), Zustand (UI state), TanStack Virtual (virtualized lists for huge todo counts), TipTap (rich-text notes), vite-plugin-pwa (installable + offline shell).
+- **Backend:** Supabase (Postgres, Auth, Row Level Security, Realtime, Storage). No custom server needed initially.
+- **Motion/effects:** Motion (Framer Motion), GSAP, canvas-confetti, tsParticles, lottie-react, use-sound (see Phase 8).
+- **AI:** Anthropic Claude API (`@anthropic-ai/sdk`) called from Supabase Edge Functions (Deno), streaming + tool use.
+- **Security:** Web Crypto API (PBKDF2/Argon2-wasm for key derivation, AES-GCM for encryption).
+- **Testing:** Vitest + React Testing Library, Playwright for e2e.
+
+## Data model (Postgres, all tables RLS-scoped to `auth.uid()`)
+- `profiles` — user, XP, level, coins, current/longest streak, settings (theme, effects level, background config)
+- `workspaces` — id, owner, name (user-defined), icon/color, `is_private`, `lock_type` (pin|pattern|none), `lock_salt`, `lock_verifier`, `encrypted_workspace_key`, sort order, optional `background` override
+- `todos` — id, workspace_id, title, description, status, priority, due_at, reminder_at, recurrence rule, parent_id (subtasks), completed_at, position, `search tsvector`; private workspaces store `title/description` as ciphertext
+- `tags` + `todo_tags`; `notes` — id, workspace_id, title, content (JSON/HTML), pinned, folder/tag, timestamps (ciphertext if private)
+- `rewards_ledger` (append-only XP/coin events), `achievements`, `user_achievements`, `reward_shop_items`, `redemptions`
+- Indexes: `(workspace_id, status, due_at)`, GIN on `tsvector`, keyset-pagination friendly `(workspace_id, created_at, id)`.
+
+## Feature phases
+
+### Phase 1 — Foundation
+Scaffold Vite/React/TS app, Tailwind + shadcn, Supabase project + migrations, email/Google auth, app shell (sidebar with workspaces, responsive/mobile layout), dark/light theme, PWA manifest.
+
+### Phase 2 — Workspaces
+Create / rename / recolor / reorder / delete workspaces with user-chosen names; workspace switcher; default "Personal" and "Professional" suggestions at onboarding. Todos and notes both belong to a workspace.
+
+### Phase 3 — Todos (core)
+CRUD, subtasks, priorities, due dates, reminders (in-app + Web Push), recurring tasks, tags, drag-and-drop ordering, filters/sort, views (Today, Upcoming, Overdue, Completed, Board/Kanban), bulk actions, undo, full-text search, keyboard shortcuts, quick-add with natural-language dates. **Scale:** server-side keyset pagination + virtualized list + indexed queries; seed script to test with 100k+ todos.
+
+### Phase 4 — Notes
+Rich-text editor (headings, lists, checklists, code, links), pin, tags/folders, search, autosave, per-workspace listing; optional link a note to a todo.
+
+### Phase 5 — Rewards system
+- XP on completion (scaled by priority, on-time bonus, subtask bonus), levels, coins
+- Daily streaks with streak freeze, daily/weekly goals
+- Achievements/badges (e.g. "100 todos done"), confetti/sound feedback
+- Reward shop: user defines their own real-life rewards and spends coins
+- All awards written via an append-only `rewards_ledger` through a Postgres function (server-validated, so XP can't be faked or farmed by toggling done/undone).
+
+### Phase 6 — Private (locked) workspaces
+- User marks a workspace private and picks a **PIN** or **pattern** (3x3 grid, min length enforced).
+- **Real protection, not just a UI gate:** a random workspace key encrypts todo/note content client-side (AES-GCM); the key is wrapped with a key derived from the PIN/pattern (PBKDF2/Argon2 + salt). Server and DB admins only see ciphertext; only someone with the code can open it.
+- Auto-lock on idle / tab hidden / manual lock; attempt throttling with escalating delays; locked workspaces hidden from search and notifications content.
+- Honest tradeoff to show the user: a forgotten code means unrecoverable data — offer an optional recovery key printed at setup.
+- Optional later: WebAuthn/biometric unlock.
+
+### Phase 7 — AI assistant (Claude API)
+A chat panel inside the app (docked sidebar + full-screen on mobile) where the user talks to an assistant that knows their todos, notes and progress.
+
+- **Architecture:** the browser never sees the API key. A Supabase Edge Function `ai-chat` authenticates the user (JWT), builds context, calls the Anthropic Messages API with streaming, and streams tokens back (SSE). Models: `claude-sonnet-5-5` for chat, `claude-haiku-5-5` for cheap background jobs (daily briefing, auto-tagging). Prompt caching on the static system prompt + tool definitions; per-user rate limits and monthly token budget tracked in `ai_usage`.
+- **Tool use (agentic, user-scoped):** `list_todos`, `search_todos`, `create_todo`, `update_todo`, `complete_todo`, `create_note`, `search_notes`, `get_stats`. Tools run through the user's own RLS-scoped Supabase client, so the AI can never exceed the user's permissions. Destructive/bulk actions (delete, mass-reschedule) require an in-chat confirm button.
+- **What it does:**
+  - "What's pending?" summaries by workspace, overdue and due-today alerts
+  - Daily morning briefing + end-of-day recap (scheduled job, shown in-app and via push)
+  - Personalised suggestions: prioritise today's list, break a big todo into subtasks, suggest realistic due dates from past completion patterns, nudge streaks ("1 todo keeps your 12-day streak")
+  - Natural-language capture ("remind me to send invoice Friday, high priority, in Work") -> creates the todo
+  - Summarise or rewrite notes; turn a note into a todo list
+  - Motivation tied to the reward system (XP/streak awareness)
+- **Privacy rules (ties into Phase 6):** locked workspaces are **excluded from AI by default**. Content is encrypted client-side, so the server cannot read it; the AI only sees a private workspace if it is unlocked AND the user explicitly enables "Allow AI in this workspace", in which case decrypted text is sent for that request only and not stored. Chat history is stored per user with RLS and can be deleted; clear UI notice that content is sent to Anthropic's API.
+- **Data:** `ai_conversations`, `ai_messages`, `ai_usage`, `ai_preferences` (tone, briefing time, per-workspace opt-in).
+- **Safety:** treat todo/note text as untrusted data in the prompt (prompt-injection guard: tool results are never treated as instructions; writes need confirmation when triggered by note content).
+
+### Phase 7b — Voice commands ("just speak, assistant does it")
+A mic button in the chat panel plus a global shortcut/floating mic (and "Hold to talk" on mobile) so the user can open the app, speak, and have the assistant act.
+
+- **Pipeline:** speech -> text -> the same `ai-chat` Edge Function and tool set from Phase 7 -> actions + spoken/visual confirmation. Voice adds no new action logic, only an input/output layer.
+- **Speech-to-text:** start with the browser Web Speech API (`SpeechRecognition`, free, live interim transcript; works in Chrome/Edge/Safari, patchy in Firefox). Fallback for unsupported browsers: record with `MediaRecorder` and send to a server-side STT provider via an Edge Function (Anthropic's API has no audio input, so this needs a separate STT service, e.g. Whisper/Deepgram; decide when building). Language setting, including Hindi/English mix.
+- **Text-to-speech (optional toggle):** browser `speechSynthesis` reads replies and confirmations aloud.
+- **UX:** live transcript shown while speaking; user can edit before sending or enable "auto-send on pause". Example: "Add call mom tomorrow 6pm in Personal and mark the invoice todo done" -> assistant shows a result card ("Created 1, completed 1") with Undo.
+- **Safety:** transcripts can be misheard, so creates/completes run immediately with an Undo toast, but delete/bulk actions always need an on-screen confirm (never voice-only). Mic permission requested only on first use; audio is not stored (transcript only, in normal chat history).
+- **Privacy:** same rules as Phase 7: locked workspaces are not reachable by voice unless unlocked and AI-enabled. Never speak or display private content aloud while a workspace is locked. A PIN/pattern is never entered by voice.
+- **Files:** `features/voice/{useSpeechRecognition,MicButton,useSpeechSynthesis}.ts(x)`, `supabase/functions/stt/` (fallback only).
+
+### Phase 8 — Motion, effects & custom backgrounds (UI wow layer)
+Built on top of earlier phases; the animation primitives (`lib/motion.ts`, shared variants/springs) are set up in Phase 1 so every feature uses them from the start.
+
+- **Libraries:** Motion (Framer Motion) for layout/gesture/page animation, GSAP for timeline-heavy sequences, `canvas-confetti` + tsParticles for particle effects, Lottie (`lottie-react`) for illustrated animations, `use-sound` for optional sound effects, Three.js/react-three-fiber only for one optional animated hero background (lazy-loaded).
+- **Micro-interactions:** animated checkbox (draw-in check + ripple), todo completion (strike-through sweep, card shrinks/slides away, coin/XP number flies to the header counter), spring drag-and-drop with lift/tilt, animated list reorder (`layout` animations), swipe-to-complete/delete on mobile, hover tilt/glow on cards, magnetic buttons, animated number counters, skeleton shimmer loaders, animated empty states.
+- **Page & navigation:** shared-element transitions between list and detail, sliding workspace switcher, animated sidebar collapse, view transitions API where supported, staggered list entrances.
+- **Rewards moments:** confetti burst on completion, level-up full-screen celebration, streak flame animation, achievement badge unlock reveal with shine, animated XP progress ring/bar.
+- **Private workspace effects:** animated lock/unlock (padlock morph), pattern-grid with glowing trail, shake on wrong code, blur-to-clear reveal when unlocked.
+- **AI & voice effects:** typing/streaming shimmer, pulsing orb/waveform that reacts to mic volume (Web Audio `AnalyserNode`), glowing assistant avatar states (listening / thinking / speaking).
+- **Visual style:** glassmorphism panels, gradient borders, soft glows, dark/light/AMOLED themes, accent colour picker, subtle parallax, cursor-follow spotlight on desktop.
+- **Custom backgrounds (user choice):**
+  - Settings > Appearance > Background. Options: solid colour, gradient builder, built-in animated presets (aurora, starfield, floating particles, waves, gradient mesh), **upload own image or short looping video/GIF**, or paste an image URL.
+  - Controls: blur, dim/brightness, overlay tint, parallax on/off, "fit/fill/tile", live preview before applying.
+  - Scope: one global background, with optional **per-workspace override** (e.g. calm blue for Work, warm for Personal).
+  - Storage: Supabase Storage bucket `backgrounds` with RLS (owner-only), client-side resize/compress to WebP (max ~2560px) before upload, size cap (e.g. 10 MB image / 15 MB video), type allowlist (png/jpg/webp/gif/mp4/webm), setting saved in `profiles.settings` and `workspaces.background`.
+  - Readability guard: auto-adds an adaptive scrim/glass layer so text keeps WCAG contrast over any image; shows a warning if too busy.
+  - Private workspaces: background is shown on the lock screen only if the user chooses (default: neutral) so lock screens don't leak identity.
+- **Performance & accessibility guardrails (non-negotiable):** animate only `transform`/`opacity` (GPU), 60 fps target, lazy-load heavy effects, pause animated backgrounds when tab hidden or on battery saver, auto-lite mode on low-end devices, honour `prefers-reduced-motion` (replace with simple fades), and an in-app "Effects level" setting: Full / Balanced / Minimal / Off. Virtualized huge lists skip per-item entrance animations.
+
+### Phase 9 — Polish & launch
+Offline cache + sync queue, export/import (JSON/CSV), accessibility pass, performance budget, error monitoring, deploy (Vercel/Netlify + Supabase).
+
+## Proposed structure
+```
+src/
+  features/{auth,workspaces,todos,notes,rewards,security}/
+  components/ui/        # shadcn
+  lib/{supabase,crypto,dates}.ts
+  routes/ stores/ hooks/
+supabase/migrations/    # schema + RLS + reward functions
+tests/ e2e/
+```
+
+## Verification
+- Unit tests: crypto round-trip (encrypt/decrypt, wrong PIN fails), reward calculation, recurrence.
+- RLS tests: user A can never read user B's rows.
+- Seed 100k todos; confirm list scroll stays smooth and queries <100 ms.
+- Manual/e2e (Playwright): sign up → create "Work" workspace → add todos → complete → XP/level-up; create private workspace → lock → reload → wrong PIN rejected → correct PIN opens; inspect DB rows to confirm ciphertext.
+- AI: chat streams; "what's pending?" matches DB; creating a todo by chat shows up in the list; delete requires confirm; locked workspace content never appears in the Edge Function request unless opted in (check network logs); rate limit triggers correctly; API key absent from browser bundle.
+- Voice: Playwright with fake audio device / mocked SpeechRecognition: spoken "add X tomorrow" creates the todo with correct due date; mishearing is fixable via Undo; delete by voice shows confirm; mic denied falls back gracefully to typing; unsupported browser uses STT fallback; locked workspace content is not spoken.
+- UI: animations hold 60 fps in Chrome performance profile with a 10k-item list; reduced-motion setting disables heavy effects; upload a large image -> compressed WebP stored, applied as background, persists after reload and on another device; oversized/wrong-type files rejected; text contrast stays AA over a busy photo; per-workspace background override switches with the workspace; animated backgrounds pause in hidden tab.
+- PWA installability via Lighthouse.
+
+## Open items for later (user will add)
+Additional features; collaboration/shared workspaces; mobile native app; hands-free wake word for voice.

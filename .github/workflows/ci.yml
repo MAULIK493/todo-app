@@ -1,0 +1,27 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npm run lint
+      - run: npm test
+      - name: Database tests (throwaway Postgres 16)
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-16
+          PG_BIN=/usr/lib/postgresql/16/bin npm run test:db
+      - run: npm run build
+      - run: npm run check:budget
+      - name: Make sure no server secret ended up in the browser bundle
+        run: "! grep -rEl 'ANTHROPIC_API_KEY|STT_API_KEY|FREE_LLM_API_KEY|sk-ant-[A-Za-z0-9]' dist"

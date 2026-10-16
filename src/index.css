@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0b14;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-solid: #151522;
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #f3f3fb;
+  --muted: #9a9ab5;
+  --accent: #9378ff;
+  --accent-2: #19c3ff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-solid: var(--surface-solid);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.gradient-text {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes drift { to { transform: translate3d(12vmax, 8vmax, 0) scale(1.15); } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
+
+/* Rich-text note editor (TipTap renders plain HTML, so style it here). */
+.note-editor { outline: none; min-height: 50vh; line-height: 1.65; }
+.note-editor > * + * { margin-top: 0.75em; }
+.note-editor h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.25; }
+.note-editor h2 { font-size: 1.4rem; font-weight: 650; line-height: 1.3; }
+.note-editor h3 { font-size: 1.15rem; font-weight: 600; }
+.note-editor ul, .note-editor ol { padding-left: 1.5rem; }
+.note-editor ul { list-style: disc; }
+.note-editor ol { list-style: decimal; }
+.note-editor ul[data-type="taskList"] { list-style: none; padding-left: 0.25rem; }
+.note-editor ul[data-type="taskList"] li { display: flex; gap: 0.5rem; align-items: flex-start; }
+.note-editor ul[data-type="taskList"] li > label { margin-top: 0.3rem; }
+.note-editor ul[data-type="taskList"] li > div { flex: 1; }
+.note-editor ul[data-type="taskList"] li[data-checked="true"] > div { color: var(--muted); text-decoration: line-through; }
+.note-editor blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; color: var(--muted); }
+.note-editor code { background: var(--surface); border-radius: 0.3rem; padding: 0.1em 0.35em; font-size: 0.9em; }
+.note-editor pre { background: var(--surface-solid); border: 1px solid var(--border); border-radius: 0.6rem; padding: 0.75rem 1rem; overflow-x: auto; }
+.note-editor pre code { background: none; padding: 0; }
+.note-editor a { color: var(--accent-2); text-decoration: underline; }
+.note-editor hr { border-color: var(--border); }
+.note-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); color: var(--muted); float: left; height: 0; pointer-events: none;
+}
+
+/* Printing a recovery key prints only the key panel. */
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; color: black; }
+}
+
+/* ---------- shimmer and glow ---------- */
+
+/* Skeleton loaders: a light sweep instead of a plain pulse. */
+.shimmer {
+  background: linear-gradient(100deg, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.16) 50%, rgba(255,255,255,0.06) 70%) rgba(255,255,255,0.06);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .shimmer { animation: none; } }
+
+/* Gradient border + soft glow for highlighted panels. */
+.gradient-border {
+  position: relative;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--surface-solid), var(--surface-solid)) padding-box,
+    linear-gradient(135deg, var(--accent), var(--accent-2)) border-box;
+}
+.glow { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 10px 40px -10px color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* Cursor-follow spotlight on panels that opt in with .spotlight (position set by script, desktop + full effects only). */
+.spotlight { position: relative; overflow: hidden; }
+.spotlight::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.25s;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+}
+.spotlight:hover::before { opacity: 1; }
