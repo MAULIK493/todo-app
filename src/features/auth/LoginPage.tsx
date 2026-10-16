@@ -8,17 +8,6 @@ import { Backdrop, glassPanel } from '@/features/landing/Backdrop'
 const input = 'w-full rounded-2xl border border-white/15 bg-white/[0.07] px-4 py-3 text-[15px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] outline-none backdrop-blur-md placeholder:text-white/45 focus:border-white/40 focus:bg-white/[0.1] focus:ring-2 focus:ring-white/20'
 const wide = 'flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-[15px] font-medium transition-all disabled:opacity-60'
 
-function GoogleMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.5 17.7 9.5 24 9.5z" />
-      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z" />
-      <path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z" />
-      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z" />
-    </svg>
-  )
-}
-
 export function LoginPage() {
   const [params] = useSearchParams()
   const [mode, setMode] = useState<'signin' | 'signup'>(params.get('mode') === 'signup' ? 'signup' : 'signin')
@@ -46,7 +35,6 @@ export function LoginPage() {
     else if (signup && !data.session) setMessage({ text: 'Check your email to confirm your account, then sign in.', error: false })
   }
 
-  const google = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin } })
   const switchMode = () => { setMode(signup ? 'signin' : 'signup'); setStep('email'); setPassword(''); setMessage(null) }
 
   return (
@@ -83,10 +71,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        <div className="relative my-5 flex items-center gap-3 text-xs text-white/40"><span className="h-px flex-1 bg-white/15" />or<span className="h-px flex-1 bg-white/15" /></div>
-        <button type="button" onClick={google} className={`${wide} relative border border-white/15 bg-white/[0.07] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-md hover:bg-white/[0.14]`}><GoogleMark /> Continue with Google</button>
-
-        <p className="relative mt-7 text-center text-[15px] text-white/60">
+        <p className="relative mt-8 text-center text-[15px] text-white/60">
           {signup ? 'Already have an account?' : 'Don’t have an account?'}{' '}
           <button type="button" onClick={switchMode} className="font-medium text-white hover:underline">{signup ? 'Sign in' : 'Sign up'}</button>
         </p>

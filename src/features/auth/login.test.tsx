@@ -3,11 +3,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const signIn = vi.fn(), signUp = vi.fn(), oauth = vi.fn()
-vi.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: (a: unknown) => signIn(a), signUp: (a: unknown) => signUp(a), signInWithOAuth: (a: unknown) => oauth(a) } }, isSupabaseConfigured: true }))
+const signIn = vi.fn(), signUp = vi.fn()
+vi.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: (a: unknown) => signIn(a), signUp: (a: unknown) => signUp(a) } }, isSupabaseConfigured: true }))
 const { LoginPage } = await import('./LoginPage')
 
-beforeEach(() => { signIn.mockReset().mockResolvedValue({ error: null, data: { session: {} } }); signUp.mockReset().mockResolvedValue({ error: null, data: { session: null } }); oauth.mockReset() })
+beforeEach(() => { signIn.mockReset().mockResolvedValue({ error: null, data: { session: {} } }); signUp.mockReset().mockResolvedValue({ error: null, data: { session: null } }) })
 afterEach(cleanup)
 const open = (at = '/login') => render(<MemoryRouter initialEntries={[at]}><LoginPage /></MemoryRouter>)
 const type = (label: string | RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
@@ -49,13 +49,12 @@ describe('login', () => {
     expect((await screen.findByRole('status')).textContent).toMatch(/Check your email/)
   })
 
-  it('switches between sign-in and sign-up, and starts Google sign-in', () => {
+  it('switches between sign-in and sign-up, and offers no sign-in method that is not set up', () => {
     open()
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }))
     expect(screen.getByRole('heading', { name: 'Create your account' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(screen.getByRole('heading', { name: 'Sign in to Todo App' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Google/ }))
-    expect(oauth).toHaveBeenCalledWith(expect.objectContaining({ provider: 'google' }))
+    expect(screen.queryByRole('button', { name: /Google/ })).toBeNull()
   })
 })

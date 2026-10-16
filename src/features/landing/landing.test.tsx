@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // jsdom has no IntersectionObserver, which the scroll-in animations use.
 vi.stubGlobal('IntersectionObserver', class { observe() {} unobserve() {} disconnect() {} takeRecords() { return [] } })
-vi.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: vi.fn(), signUp: vi.fn(), signInWithOAuth: vi.fn() } }, isSupabaseConfigured: true }))
+vi.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: vi.fn(), signUp: vi.fn() } }, isSupabaseConfigured: true }))
 const { default: LandingPage } = await import('./LandingPage')
 const { LoginPage } = await import('@/features/auth/LoginPage')
 
