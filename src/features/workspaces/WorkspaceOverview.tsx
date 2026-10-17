@@ -33,7 +33,7 @@ function FolderCard({ workspace, index }: { workspace: Workspace; index: number 
   const roomy = useMediaQuery('(min-width: 480px)')
   const priv = isPrivateState(workspace.lock_state)
   const { data, isLoading } = usePreview(workspace)
-  const width = roomy ? 300 : 250
+  const width = roomy ? 210 : 180
   const height = ((272 + 54) * width) / 340
 
   // The folder reads its files once, so wait for them rather than showing an empty folder that fills in later.
@@ -44,7 +44,7 @@ function FolderCard({ workspace, index }: { workspace: Workspace; index: number 
   const meta = priv ? 'Private' : files.length === 0 ? 'Nothing open' : files.length >= PREVIEW ? `${PREVIEW}+ open` : `${files.length} open`
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       <GlassFolder
         label={workspace.name} meta={meta} files={files}
         tone="dark" art={ARTS[index % ARTS.length]} seed={index * 7 + 3}
@@ -61,7 +61,7 @@ function FolderCard({ workspace, index }: { workspace: Workspace; index: number 
 
 export function WorkspaceOverview({ workspaces }: { workspaces: Workspace[] }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] justify-items-center gap-x-12 gap-y-20 pb-8 pt-10">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] justify-items-center gap-x-8 gap-y-14 pb-6 pt-6">
       {workspaces.map((w, i) => <FolderCard key={w.id} workspace={w} index={i} />)}
     </div>
   )

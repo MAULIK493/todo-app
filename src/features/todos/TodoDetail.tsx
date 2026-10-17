@@ -51,10 +51,10 @@ export function TodoDetail({ todo, onClose, onDelete }: Props) {
 
   return (
     <>
-      <motion.div className="fixed inset-0 z-30 bg-black/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+      <motion.div className="fixed inset-0 z-[44] bg-black/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.aside
         role="dialog" aria-label="Todo details" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={spring}
-        className="glass fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-auto bg-surface-solid p-5"
+        className="glass fixed inset-y-0 right-0 z-[45] h-dvh w-full max-w-md overflow-y-auto overscroll-contain bg-surface-solid p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Details</h2>
