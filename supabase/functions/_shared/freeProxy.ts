@@ -8,7 +8,7 @@ type FreeProvider = { label: string; baseUrl: string; model: string; streamUsage
 
 export const FREE_PROVIDERS: Record<FreeProviderId, FreeProvider> = {
   groq: { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', streamUsage: true },
-  gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', streamUsage: false },
+  gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.8-flash', streamUsage: false },
   openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-oss-20b:free', streamUsage: true },
 }
 
@@ -112,7 +112,9 @@ export function upstreamMessage(text: string): string {
 export function describeUpstreamFailure(status: number, detail = ''): ProxyError {
   // Some services (Gemini) report a rejected key as a 400 rather than a 401.
   const keyRejected = /api[ _-]?key|auth(entication|orization)?\b|unauthorized/i.test(detail)
-  if (status === 401 || status === 403 || (status === 400 && keyRejected)) return { status: 503, code: 'free_unavailable', error: 'The free assistant is not available right now. You can still use your own key in Assistant settings.' }
+  // A retired or unknown model is the host's problem to fix (set FREE_LLM_MODEL), not something the person can act on.
+  const modelGone = /no longer available|not found|does not exist|deprecated|decommissioned|not supported/i.test(detail)
+  if (status === 401 || status === 403 || ((status === 400 || status === 404) && (keyRejected || modelGone))) return { status: 503, code: 'free_unavailable', error: 'The free assistant is not available right now. You can still use your own key in Assistant settings.' }
   if (status === 429 || status === 402) return { status: 429, code: 'busy', error: 'The free assistant is very busy right now. Try again in a minute, or use your own key in Assistant settings.' }
   if (status >= 500) return { status: 502, code: 'server', error: 'The free assistant is having problems. Try again in a moment.' }
   return { status: 502, code: 'server', error: `The free assistant could not handle that request${detail ? ` (the service said: ${detail})` : ` (error ${status})`}.` }

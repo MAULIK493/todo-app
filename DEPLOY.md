@@ -33,7 +33,8 @@ Netlify) for the web app.
    supabase secrets set FREE_LLM_PROVIDER=groq FREE_LLM_API_KEY=gsk_...
    # or Google Gemini: aistudio.google.com/apikey
    supabase secrets set FREE_LLM_PROVIDER=gemini FREE_LLM_API_KEY=...
-   # optional: pick another model
+   # optional: pick another model. Do this if a service retires its model (the assistant then says it is unavailable);
+   # no redeploy is needed, it takes effect on the next message
    supabase secrets set FREE_LLM_MODEL=...
    ```
 

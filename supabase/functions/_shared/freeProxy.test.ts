@@ -9,6 +9,7 @@ describe('free assistant configuration', () => {
   it('needs a key and a known service, and defaults to Groq', () => {
     expect(readFreeConfig(() => undefined)).toBeNull()
     expect(readFreeConfig((k) => (k === 'FREE_LLM_API_KEY' ? 'abc' : undefined))).toMatchObject({ provider: 'groq', key: 'abc', model: 'llama-3.3-70b-versatile' })
+    expect(readFreeConfig((k) => ({ FREE_LLM_API_KEY: 'k', FREE_LLM_PROVIDER: 'gemini' } as Record<string, string>)[k])?.model).toBe('gemini-3.8-flash')
     expect(readFreeConfig((k) => ({ FREE_LLM_API_KEY: ' k ', FREE_LLM_PROVIDER: 'Gemini', FREE_LLM_MODEL: 'gemini-x' } as Record<string, string>)[k])).toMatchObject({ provider: 'gemini', key: 'k', model: 'gemini-x', streamUsage: false })
     expect(readFreeConfig((k) => ({ FREE_LLM_API_KEY: 'k', FREE_LLM_PROVIDER: 'anthropic' } as Record<string, string>)[k])).toBeNull() // never Claude
   })
@@ -86,6 +87,11 @@ describe('free assistant errors', () => {
     expect(describeUpstreamFailure(400, 'Invalid Auth key.')).toMatchObject({ status: 503, code: 'free_unavailable' })
     expect(describeUpstreamFailure(400, 'Please pass a valid API key')).toMatchObject({ code: 'free_unavailable' })
     expect(describeUpstreamFailure(400, 'Unknown name "x"')).toMatchObject({ code: 'server' })
+  })
+
+  it('treats a retired or unknown model as the host’s problem, not the person’s', () => {
+    expect(describeUpstreamFailure(404, 'This model models/x is no longer available to new users.')).toMatchObject({ status: 503, code: 'free_unavailable' })
+    expect(describeUpstreamFailure(400, 'The model `y` does not exist')).toMatchObject({ code: 'free_unavailable' })
   })
 
   it('includes the service’s own explanation for a request it did not understand, but not for key or capacity problems', () => {

@@ -23,7 +23,7 @@ export type Provider = {
 export const PROVIDERS: Provider[] = [
   {
     id: 'gemini', name: 'Google Gemini', api: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-2.5-flash', models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+    defaultModel: 'gemini-3.8-flash', models: ['gemini-3.8-flash'],
     keyUrl: 'https://aistudio.google.com/apikey', free: 'Free tier', note: 'A good place to start: the free tier is generous and needs no card.',
     tokenParam: 'max_tokens', streamUsage: false,
   },

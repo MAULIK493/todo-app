@@ -97,7 +97,7 @@ describe('the key stays on this device', () => {
     localStorage.setItem('ai-config', '{not json')
     expect(readConfig()).toMatchObject({ mode: 'free', provider: 'gemini', apiKey: '' })
     localStorage.setItem('ai-config', JSON.stringify({ mode: 'weird', provider: 'evil', model: 5, apiKey: 7 }))
-    expect(readConfig()).toMatchObject({ mode: 'free', provider: 'gemini', model: 'gemini-2.5-flash', apiKey: '' })
+    expect(readConfig()).toMatchObject({ mode: 'free', provider: 'gemini', model: 'gemini-3.8-flash', apiKey: '' })
   })
 })
 
@@ -207,7 +207,7 @@ describe('provider settings', () => {
   })
 
   it('lets the person choose a service, paste a key, and test it', async () => {
-    useAiConfig.setState({ mode: 'own', provider: 'gemini', model: 'gemini-2.5-flash', apiKey: '', remember: true })
+    useAiConfig.setState({ mode: 'own', provider: 'gemini', model: 'gemini-3.8-flash', apiKey: '', remember: true })
     const fetchMock = vi.fn(async () => new Response('data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'))
     vi.stubGlobal('fetch', fetchMock)
     render(<ProviderSettings />)
