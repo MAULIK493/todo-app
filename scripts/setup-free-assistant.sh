@@ -11,7 +11,7 @@ SB="npx --yes supabase@latest"
 # The project reference is the first part of your project URL in .env.
 ref="${SUPABASE_PROJECT_REF:-}"
 if [ -z "$ref" ] && [ -f .env ]; then
-  ref="$(sed -n 's#^VITE_SUPABASE_URL=https\?://\([a-z0-9]*\)\.supabase\.co.*#\1#p' .env | head -1)"
+  ref="$(sed -nE 's#^VITE_SUPABASE_URL=https?://([a-z0-9]+)\.supabase\.co.*#\1#p' .env | head -1)"
 fi
 [ -n "$ref" ] || { echo "Could not find your project reference. Run: SUPABASE_PROJECT_REF=<ref> bash $0"; exit 1; }
 echo "Project: $ref"
