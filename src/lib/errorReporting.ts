@@ -30,7 +30,7 @@ export function browserName(ua: string): string {
 /** Two crashes with the same cause get the same fingerprint, whatever the line numbers, ids or timing in the message. */
 export function fingerprintOf(message: string, stack = ''): string {
   const generic = message.replace(UUID, ':id').replace(/\d+/g, '#').slice(0, 200)
-  const frames = stack.split('\n').map((l) => /at\s+([^\s(]+)/.exec(l)?.[1]).filter((f): f is string => !!f && f !== 'new').slice(0, 3)
+  const frames = stack.split('\n').map((l) => /at\s+([^\s(]+)/.exec(l)?.[1]?.replace(/:\d+(:\d+)?$/, '')).filter((f): f is string => !!f && f !== 'new').slice(0, 3)
   let h1 = 0x811c9dc5, h2 = 0x01000193
   for (const ch of `${generic}|${frames.join('>')}`) {
     h1 = Math.imul(h1 ^ ch.charCodeAt(0), 16777619)
