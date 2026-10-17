@@ -110,7 +110,9 @@ export function upstreamMessage(text: string): string {
  * its short explanation is included so the problem can be found; for key or capacity problems it is not.
  */
 export function describeUpstreamFailure(status: number, detail = ''): ProxyError {
-  if (status === 401 || status === 403) return { status: 503, code: 'free_unavailable', error: 'The free assistant is not available right now. You can still use your own key in Assistant settings.' }
+  // Some services (Gemini) report a rejected key as a 400 rather than a 401.
+  const keyRejected = /api[ _-]?key|auth(entication|orization)?\b|unauthorized/i.test(detail)
+  if (status === 401 || status === 403 || (status === 400 && keyRejected)) return { status: 503, code: 'free_unavailable', error: 'The free assistant is not available right now. You can still use your own key in Assistant settings.' }
   if (status === 429 || status === 402) return { status: 429, code: 'busy', error: 'The free assistant is very busy right now. Try again in a minute, or use your own key in Assistant settings.' }
   if (status >= 500) return { status: 502, code: 'server', error: 'The free assistant is having problems. Try again in a moment.' }
   return { status: 502, code: 'server', error: `The free assistant could not handle that request${detail ? ` (the service said: ${detail})` : ` (error ${status})`}.` }

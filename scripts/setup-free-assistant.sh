@@ -33,11 +33,29 @@ if [ "$keep" = "n" ]; then
 echo; echo "3/4  Your free AI key"
 echo "     Create a FREE key (no card): Groq https://console.groq.com/keys  or  Gemini https://aistudio.google.com/apikey"
 echo "     Do not attach billing, so it can never cost you anything."
-read -r -p "     Which one did you use? (groq/gemini) [groq]: " provider
-provider="${provider:-groq}"
-case "$provider" in groq|gemini|openrouter) ;; *) echo "Use groq, gemini or openrouter."; exit 1 ;; esac
-read -r -s -p "     Paste the key (nothing will show): " key; echo
-[ -n "$key" ] || { echo "No key entered."; exit 1; }
+while :; do
+  read -r -p "     Which one did you use? (groq/gemini)  [a Google AI Studio key is gemini]: " provider
+  case "$provider" in groq|gemini|openrouter) ;; *) echo "     Please type groq, gemini or openrouter."; continue ;; esac
+  read -r -s -p "     Paste the key (nothing will show): " key; echo
+  key="$(printf '%s' "$key" | tr -d '[:space:]')"
+  [ -n "$key" ] || { echo "     No key entered."; continue; }
+
+  # Keys look different per service; a mismatch is the usual cause of "Invalid key" later.
+  case "$provider:$key" in
+    groq:AIza*) echo "     That looks like a Google (Gemini) key. Choose gemini instead."; continue ;;
+    gemini:gsk_*) echo "     That looks like a Groq key. Choose groq instead."; continue ;;
+  esac
+
+  # Ask the service itself whether the key works, before storing anything. The key goes through stdin, not the command line.
+  case "$provider" in
+    groq) check_url="https://api.groq.com/openai/v1/models" ;;
+    gemini) check_url="https://generativelanguage.googleapis.com/v1beta/openai/models" ;;
+    openrouter) check_url="https://openrouter.ai/api/v1/auth/key" ;;
+  esac
+  code="$(printf 'header = "Authorization: Bearer %s"\n' "$key" | curl -s -o /dev/null -w '%{http_code}' -K - "$check_url" || true)"
+  if [ "$code" = "200" ]; then echo "     The service accepted the key."; break; fi
+  echo "     The service rejected that key (answered $code). Check that you copied the whole key from the right service, then try again."
+done
 
 # Passed through a private temporary file, not on the command line, so it never shows up in process lists or history.
 envfile="$(mktemp)"; chmod 600 "$envfile"

@@ -82,6 +82,12 @@ describe('free assistant errors', () => {
     expect(describeUpstreamFailure(401).error).toMatch(/your own key/)
   })
 
+  it('treats a rejected key reported as a 400 (Gemini) the same as a 401', () => {
+    expect(describeUpstreamFailure(400, 'Invalid Auth key.')).toMatchObject({ status: 503, code: 'free_unavailable' })
+    expect(describeUpstreamFailure(400, 'Please pass a valid API key')).toMatchObject({ code: 'free_unavailable' })
+    expect(describeUpstreamFailure(400, 'Unknown name "x"')).toMatchObject({ code: 'server' })
+  })
+
   it('includes the service’s own explanation for a request it did not understand, but not for key or capacity problems', () => {
     expect(describeUpstreamFailure(400, 'Unknown name "x" at tools[0]').error).toContain('Unknown name "x" at tools[0]')
     expect(describeUpstreamFailure(400).error).toContain('error 400')
