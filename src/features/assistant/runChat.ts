@@ -76,11 +76,8 @@ export async function runChat(o: {
         console.error('could not save the conversation', e)
       }
     }
-    try {
-      await store.recordUsage(result.usage.input, result.usage.output)
-    } catch (e) {
-      console.error('could not record usage', e)
-    }
+    // Bookkeeping only: the person should not wait for it.
+    void store.recordUsage(result.usage.input, result.usage.output).catch((e) => console.error('could not record usage', e))
     o.onEvent({ type: 'done', conversationId, persisted, usage: result.usage })
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { describeUpstreamFailure, MAX_OUTPUT_TOKENS, readFreeConfig, sanitizeChatBody, upstreamMessage } from './freeProxy.ts'
 
-const cfg: { model: string; streamUsage: boolean; provider?: string } = { model: 'the-model', streamUsage: true }
+const cfg: { model: string; streamUsage: boolean; provider?: string; reasoning?: string | null } = { model: 'the-model', streamUsage: true }
 const ok = (raw: unknown, c = cfg) => { const r = sanitizeChatBody(raw, c); if (!r.ok) throw new Error(r.error); return r.body }
 const bad = (raw: unknown) => { const r = sanitizeChatBody(raw, cfg); return r.ok ? null : r.error }
 
@@ -72,6 +72,17 @@ describe('free assistant request check', () => {
     expect(JSON.stringify(calls[0])).not.toContain('other')
     expect(calls[1]).not.toHaveProperty('extra_content')
     expect(calls[2]).not.toHaveProperty('extra_content')
+  })
+
+  it('keeps Gemini’s thinking low by default for speed, and lets the host change or switch it off', () => {
+    const gem = (extra: Record<string, string> = {}) => readFreeConfig((k) => ({ FREE_LLM_API_KEY: 'k', FREE_LLM_PROVIDER: 'gemini', ...extra } as Record<string, string>)[k])
+    expect(gem()?.reasoning).toBe('low')
+    expect(gem({ FREE_LLM_REASONING: 'MINIMAL' })?.reasoning).toBe('minimal')
+    expect(gem({ FREE_LLM_REASONING: 'off' })?.reasoning).toBeNull()
+    expect(gem({ FREE_LLM_REASONING: 'bogus' })?.reasoning).toBe('low')
+    expect(readFreeConfig((k) => ({ FREE_LLM_API_KEY: 'k' } as Record<string, string>)[k])?.reasoning).toBeNull() // Groq: nothing to send
+    expect(ok({ messages: [{ role: 'user', content: 'x' }] }, { ...cfg, reasoning: 'low' }).reasoning_effort).toBe('low')
+    expect(ok({ messages: [{ role: 'user', content: 'x' }] }).reasoning_effort).toBeUndefined()
   })
 
   it('rejects anything malformed or oversized', () => {

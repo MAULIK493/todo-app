@@ -12,7 +12,7 @@ export const FREE_PROVIDERS: Record<FreeProviderId, FreeProvider> = {
   openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-oss-20b:free', streamUsage: true },
 }
 
-export type FreeConfig = { provider: FreeProviderId; label: string; baseUrl: string; model: string; key: string; streamUsage: boolean }
+export type FreeConfig = { provider: FreeProviderId; label: string; baseUrl: string; model: string; key: string; streamUsage: boolean; reasoning: string | null }
 
 /** FREE_LLM_PROVIDER (groq | gemini | openrouter), FREE_LLM_API_KEY and optionally FREE_LLM_MODEL. Null when not set up. */
 export function readFreeConfig(get: (key: string) => string | null | undefined): FreeConfig | null {
@@ -21,7 +21,11 @@ export function readFreeConfig(get: (key: string) => string | null | undefined):
   if (!key || !(id in FREE_PROVIDERS)) return null
   const p = FREE_PROVIDERS[id as FreeProviderId]
   const model = (get('FREE_LLM_MODEL') ?? '').trim()
-  return { provider: id as FreeProviderId, label: p.label, baseUrl: p.baseUrl, model: model || p.model, key, streamUsage: p.streamUsage }
+  // How much the model "thinks" before answering. Gemini's newer models think by default, which can add many seconds;
+  // "low" keeps replies quick. FREE_LLM_REASONING=off sends nothing, or set minimal | low | medium | high.
+  const asked = (get('FREE_LLM_REASONING') ?? '').trim().toLowerCase()
+  const reasoning = asked === 'off' ? null : ['minimal', 'low', 'medium', 'high'].includes(asked) ? asked : id === 'gemini' ? 'low' : null
+  return { provider: id as FreeProviderId, label: p.label, baseUrl: p.baseUrl, model: model || p.model, key, streamUsage: p.streamUsage, reasoning }
 }
 
 export const MAX_BODY_CHARS = 400_000
@@ -46,7 +50,7 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
  * cap, or pass any option we did not name, so the free key can only be used for this app's own kind of chat.
  * Throws on a malformed tool call (callers treat that as a bad request).
  */
-export function sanitizeChatBody(raw: unknown, cfg: Pick<FreeConfig, 'model' | 'streamUsage'> & { provider?: string }): { ok: true; body: Obj } | { ok: false; error: string } {
+export function sanitizeChatBody(raw: unknown, cfg: Pick<FreeConfig, 'model' | 'streamUsage'> & { provider?: string; reasoning?: string | null }): { ok: true; body: Obj } | { ok: false; error: string } {
   if (!isObj(raw)) return { ok: false, error: 'Send a JSON object.' }
   if (!Array.isArray(raw.messages) || raw.messages.length === 0 || raw.messages.length > MAX_MESSAGES) return { ok: false, error: 'Invalid messages.' }
 
@@ -94,6 +98,7 @@ export function sanitizeChatBody(raw: unknown, cfg: Pick<FreeConfig, 'model' | '
       stream: true,
       max_tokens: Math.min(Math.max(asked, 16), MAX_OUTPUT_TOKENS),
       ...(cfg.streamUsage ? { stream_options: { include_usage: true } } : {}),
+      ...(cfg.reasoning ? { reasoning_effort: cfg.reasoning } : {}),
       messages,
       ...(tools && tools.length ? { tools } : {}),
     },

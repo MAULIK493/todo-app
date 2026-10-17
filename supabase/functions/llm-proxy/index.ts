@@ -58,12 +58,22 @@ Deno.serve(async (req) => {
   if (blocked) return jsonResponse({ code: 'daily_limit', error: `${blocked} You can keep going right away by adding your own key in Assistant settings.` }, 429)
 
   try {
-    const upstream = await fetch(`${config.baseUrl}/chat/completions`, {
+    const send = (b: unknown) => fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${config.key}` },
-      body: JSON.stringify(body),
+      body: JSON.stringify(b),
       signal: AbortSignal.timeout(120_000),
     })
+    let upstream = await send(body)
+    // A model that does not take the "reasoning effort" setting: try once more without it, rather than failing.
+    if (upstream.status === 400 && 'reasoning_effort' in body) {
+      const detail = upstreamMessage(await upstream.clone().text().catch(() => ''))
+      if (/reasoning|thinking|effort/i.test(detail)) {
+        console.error('retrying without reasoning_effort:', detail)
+        const { reasoning_effort: _dropped, ...rest } = body
+        upstream = await send(rest)
+      }
+    }
     if (!upstream.ok || !upstream.body) {
       // Only the status, and for a request it did not understand its short explanation, are used and logged.
       const detail = upstream.status >= 400 && upstream.status < 500 && ![401, 402, 403, 429].includes(upstream.status) ? upstreamMessage(await upstream.text().catch(() => '')) : ''
