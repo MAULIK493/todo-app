@@ -141,6 +141,17 @@ describe('chat-completions adapter (Gemini, Groq, OpenRouter, OpenAI)', () => {
     expect(message.usage).toEqual({ input_tokens: 20, output_tokens: 5 })
   })
 
+  it('keeps Gemini’s thought signature on a tool call and sends it back with the result', async () => {
+    const frames = [
+      oai({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'list_workspaces', arguments: '{}' }, extra_content: { google: { thought_signature: 'SIG123' } } }] }, finish_reason: 'tool_calls' }] }),
+      oai('[DONE]'),
+    ]
+    const { message } = await run(createOpenAILLM({ provider: providerById('gemini'), apiKey: 'k', model: 'm', maxTokens: 5, fetch: (async () => sse(frames)) as never }) as never)
+    expect(message.content[0]).toMatchObject({ type: 'tool_use', id: 'c1', extra_content: { google: { thought_signature: 'SIG123' } } })
+    const sent = toOpenAIMessages('s', [{ role: 'assistant', content: message.content }])
+    expect(sent[1]).toMatchObject({ role: 'assistant', tool_calls: [{ id: 'c1', extra_content: { google: { thought_signature: 'SIG123' } } }] })
+  })
+
   it('copes with a provider that leaves out ids, or says "stop" while asking for tools', async () => {
     const frames = [oai({ choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'list_workspaces', arguments: '{}' } }] }, finish_reason: 'stop' }] }), oai('[DONE]')]
     const { message } = await run(createOpenAILLM({ provider: groq, apiKey: 'k', model: 'm', maxTokens: 5, fetch: (async () => sse(frames)) as never }) as never)

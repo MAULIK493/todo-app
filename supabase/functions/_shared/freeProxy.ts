@@ -29,6 +29,14 @@ export const MAX_OUTPUT_TOKENS = 4096
 const MAX_MESSAGES = 120
 const MAX_TOOLS = 30
 const ROLES = new Set(['system', 'user', 'assistant', 'tool'])
+const MAX_SIGNATURE_CHARS = 50_000
+
+/** Gemini's "thought signature" for a tool call: the only extra field passed through, and only in its exact shape. */
+function signatureOf(c: unknown): Obj | undefined {
+  if (!isObj(c) || !isObj(c.extra_content) || !isObj(c.extra_content.google)) return undefined
+  const sig = c.extra_content.google.thought_signature
+  return typeof sig === 'string' && sig.length <= MAX_SIGNATURE_CHARS ? { google: { thought_signature: sig } } : undefined
+}
 
 type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -60,7 +68,8 @@ export function sanitizeChatBody(raw: unknown, cfg: Pick<FreeConfig, 'model' | '
         const f = isObj(c) && isObj(c.function) ? c.function : null
         if (!isObj(c) || !f || typeof c.id !== 'string' || typeof f.name !== 'string' || typeof f.arguments !== 'string') throw new Error('bad call')
         toolNames.set(c.id, f.name)
-        return { id: c.id, type: 'function', function: { name: f.name, arguments: f.arguments } }
+        const extra = signatureOf(c)
+        return { id: c.id, type: 'function', function: { name: f.name, arguments: f.arguments }, ...(extra ? { extra_content: extra } : {}) }
       })
     }
     messages.push(out)

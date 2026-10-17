@@ -18,7 +18,7 @@ export type OpenAIOptions = {
 
 type OAIMessage =
   | { role: 'system' | 'user'; content: string }
-  | { role: 'assistant'; content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] }
+  | { role: 'assistant'; content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string }; extra_content?: unknown }[] }
   | { role: 'tool'; tool_call_id: string; content: string; name?: string }
 
 /** Our conversation uses Claude-style content blocks; chat-completions APIs want tool calls and tool results as their own messages. */
@@ -32,6 +32,8 @@ export function toOpenAIMessages(system: string, messages: MsgParam[], opts: { t
       const text = blocks.filter((b) => b.type === 'text').map((b) => b.text as string).join('')
       const calls = blocks.filter((b) => b.type === 'tool_use').map((b) => (names.set(b.id as string, b.name as string), {
         id: b.id as string, type: 'function' as const, function: { name: b.name as string, arguments: JSON.stringify(b.input ?? {}) },
+        // Gemini's newer models hand back a "thought signature" with a tool call and insist on getting it back.
+        ...(b.extra_content ? { extra_content: b.extra_content } : {}),
       }))
       out.push({ role: 'assistant', content: text || null, ...(calls.length ? { tool_calls: calls } : {}) })
     } else {
@@ -80,7 +82,7 @@ export function createOpenAILLM(o: OpenAIOptions): LLM {
           if (!res.ok || !res.body) throw await failureFromResponse(res)
 
           let text = ''
-          const calls: { id: string; name: string; args: string }[] = []
+          const calls: { id: string; name: string; args: string; extra?: unknown }[] = []
           let finish: string | null = null
           const usage = { input_tokens: 0, output_tokens: 0 }
 
@@ -100,6 +102,7 @@ export function createOpenAILLM(o: OpenAIOptions): LLM {
               if (tc.id) c.id = tc.id
               if (tc.function?.name) c.name += tc.function.name
               if (tc.function?.arguments) c.args += tc.function.arguments
+              if (tc.extra_content && typeof tc.extra_content === 'object') c.extra = tc.extra_content
             }
             if (choice.finish_reason) finish = choice.finish_reason
           }
@@ -111,7 +114,7 @@ export function createOpenAILLM(o: OpenAIOptions): LLM {
             let input: unknown
             try { input = c.args.trim() ? JSON.parse(c.args) : {} } catch { throw new RetryableLLMError(`could not read the input of ${c.name}`) }
             // Some providers leave the id empty; it only has to match between the call and its result.
-            content.push({ type: 'tool_use', id: c.id || `call_${i}_${Math.random().toString(36).slice(2, 8)}`, name: c.name, input })
+            content.push({ type: 'tool_use', id: c.id || `call_${i}_${Math.random().toString(36).slice(2, 8)}`, name: c.name, input, ...(c.extra ? { extra_content: c.extra } : {}) })
           })
           // A model that calls tools but reports "stop" is still asking for the tools to run.
           const stop = used.length > 0 && (!finish || finish === 'stop') ? 'tool_use' : (STOP[finish ?? ''] ?? 'end_turn')

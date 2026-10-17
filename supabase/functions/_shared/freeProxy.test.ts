@@ -60,6 +60,20 @@ describe('free assistant request check', () => {
     expect((ok({ messages }, { ...cfg, provider: 'groq' }).messages as { name?: string }[])[1].name).toBeUndefined()
   })
 
+  it('passes Gemini’s thought signature through, and nothing else extra on a tool call', () => {
+    const body = ok({ messages: [{ role: 'assistant', content: null, tool_calls: [
+      { id: 'a', type: 'function', function: { name: 'f', arguments: '{}' }, extra_content: { google: { thought_signature: 'SIG', other: 1 }, evil: 1 } },
+      { id: 'b', type: 'function', function: { name: 'g', arguments: '{}' }, extra_content: { google: { thought_signature: 5 } } },
+      { id: 'c', type: 'function', function: { name: 'h', arguments: '{}' }, extra_content: 'x' },
+    ] }] }, { ...cfg, provider: 'gemini' })
+    const calls = (body.messages as { tool_calls: object[] }[])[0].tool_calls
+    expect(calls[0]).toMatchObject({ extra_content: { google: { thought_signature: 'SIG' } } })
+    expect(JSON.stringify(calls[0])).not.toContain('evil')
+    expect(JSON.stringify(calls[0])).not.toContain('other')
+    expect(calls[1]).not.toHaveProperty('extra_content')
+    expect(calls[2]).not.toHaveProperty('extra_content')
+  })
+
   it('rejects anything malformed or oversized', () => {
     expect(bad(null)).toBeTruthy()
     expect(bad({})).toBeTruthy()
