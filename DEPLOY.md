@@ -22,6 +22,9 @@ Netlify) for the web app.
    supabase secrets set STT_API_URL=... STT_API_KEY=... STT_MODEL=...
    ```
 
+   Easiest: run `bash scripts/setup-free-assistant.sh`. It logs you in, links the project, asks for the free key (typed
+   hidden, never printed or sent to the browser), stores it as a secret and deploys the functions.
+
    **The free assistant** (on by default for everyone, no setup for users) forwards to a free-tier model using a key
    you keep as a secret. It never uses Claude. Create a free key (no card needed) and set it once:
 
