@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createStore } from '../_shared/db.ts'
-import { describeUpstreamFailure, MAX_BODY_CHARS, readFreeConfig, sanitizeChatBody } from '../_shared/freeProxy.ts'
+import { describeUpstreamFailure, MAX_BODY_CHARS, readFreeConfig, sanitizeChatBody, upstreamMessage } from '../_shared/freeProxy.ts'
 import { CORS_HEADERS, jsonResponse } from '../_shared/http.ts'
 import { checkUsage, readLimits } from '../_shared/limits.ts'
 
@@ -65,9 +65,10 @@ Deno.serve(async (req) => {
       signal: AbortSignal.timeout(120_000),
     })
     if (!upstream.ok || !upstream.body) {
-      // Only the status is kept: the provider's reply can echo details of the request.
-      console.error('free model service returned', upstream.status)
-      const f = describeUpstreamFailure(upstream.status)
+      // Only the status, and for a request it did not understand its short explanation, are used and logged.
+      const detail = upstream.status >= 400 && upstream.status < 500 && ![401, 402, 403, 429].includes(upstream.status) ? upstreamMessage(await upstream.text().catch(() => '')) : ''
+      console.error('free model service returned', upstream.status, detail)
+      const f = describeUpstreamFailure(upstream.status, detail)
       return jsonResponse({ code: f.code, error: f.error }, f.status)
     }
     await store.recordUsage(0, 0).catch((e: unknown) => console.error('could not record usage', e instanceof Error ? e.name : 'error'))

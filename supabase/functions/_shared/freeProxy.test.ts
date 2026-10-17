@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { describeUpstreamFailure, MAX_OUTPUT_TOKENS, readFreeConfig, sanitizeChatBody } from './freeProxy.ts'
+import { describeUpstreamFailure, MAX_OUTPUT_TOKENS, readFreeConfig, sanitizeChatBody, upstreamMessage } from './freeProxy.ts'
 
-const cfg = { model: 'the-model', streamUsage: true }
+const cfg: { model: string; streamUsage: boolean; provider?: string } = { model: 'the-model', streamUsage: true }
 const ok = (raw: unknown, c = cfg) => { const r = sanitizeChatBody(raw, c); if (!r.ok) throw new Error(r.error); return r.body }
 const bad = (raw: unknown) => { const r = sanitizeChatBody(raw, cfg); return r.ok ? null : r.error }
 
@@ -19,12 +19,12 @@ describe('free assistant request check', () => {
     const body = ok({
       model: 'gpt-5-expensive', stream: false, temperature: 2, tool_choice: 'x', user: 'u', n: 50,
       messages: [{ role: 'system', content: 's', extra: 1 }, { role: 'user', content: 'hi' }],
-      tools: [{ type: 'function', function: { name: 'list_todos', description: 'd', parameters: { type: 'object' } }, extra: 1 }],
+      tools: [{ type: 'function', function: { name: 'list_todos', description: 'd', parameters: { type: 'object', additionalProperties: false, properties: { view: { type: 'string' } } } }, extra: 1 }],
     })
     expect(body).toEqual({
       model: 'the-model', stream: true, max_tokens: MAX_OUTPUT_TOKENS, stream_options: { include_usage: true },
       messages: [{ role: 'system', content: 's' }, { role: 'user', content: 'hi' }],
-      tools: [{ type: 'function', function: { name: 'list_todos', description: 'd', parameters: { type: 'object' } } }],
+      tools: [{ type: 'function', function: { name: 'list_todos', description: 'd', parameters: { type: 'object', properties: { view: { type: 'string' } } } } }],
     })
   })
 
@@ -43,6 +43,20 @@ describe('free assistant request check', () => {
       { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'f', arguments: '{}' } }] },
       { role: 'tool', tool_call_id: 'c1', content: 'r' },
     ])
+  })
+
+  it('leaves parameters out for a tool that takes none, which Gemini requires', () => {
+    const body = ok({ messages: [{ role: 'user', content: 'x' }], tools: [{ type: 'function', function: { name: 'list_workspaces', description: 'd', parameters: { type: 'object', properties: {}, additionalProperties: false } } }] })
+    expect(body.tools).toEqual([{ type: 'function', function: { name: 'list_workspaces', description: 'd' } }])
+  })
+
+  it('tells Gemini which tool each result belongs to, and nobody else', () => {
+    const messages = [
+      { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'list_todos', arguments: '{}' } }] },
+      { role: 'tool', tool_call_id: 'c1', content: 'r' },
+    ]
+    expect((ok({ messages }, { ...cfg, provider: 'gemini' }).messages as { name?: string }[])[1].name).toBe('list_todos')
+    expect((ok({ messages }, { ...cfg, provider: 'groq' }).messages as { name?: string }[])[1].name).toBeUndefined()
   })
 
   it('rejects anything malformed or oversized', () => {
@@ -66,5 +80,20 @@ describe('free assistant errors', () => {
     expect(describeUpstreamFailure(503)).toMatchObject({ status: 502, code: 'server' })
     expect(describeUpstreamFailure(400)).toMatchObject({ status: 502, code: 'server' })
     expect(describeUpstreamFailure(401).error).toMatch(/your own key/)
+  })
+
+  it('includes the service’s own explanation for a request it did not understand, but not for key or capacity problems', () => {
+    expect(describeUpstreamFailure(400, 'Unknown name "x" at tools[0]').error).toContain('Unknown name "x" at tools[0]')
+    expect(describeUpstreamFailure(400).error).toContain('error 400')
+    expect(describeUpstreamFailure(401, 'secret detail').error).not.toContain('secret')
+    expect(describeUpstreamFailure(429, 'quota detail').error).not.toContain('quota detail')
+  })
+
+  it('reads the short explanation out of the reply formats the services use', () => {
+    expect(upstreamMessage(JSON.stringify([{ error: { code: 400, message: 'Bad  field\nhere' } }]))).toBe('Bad field here')
+    expect(upstreamMessage('{"error":{"message":"nope"}}')).toBe('nope')
+    expect(upstreamMessage('{"error":"plain"}')).toBe('plain')
+    expect(upstreamMessage('not json')).toBe('')
+    expect(upstreamMessage(JSON.stringify({ error: { message: 'x'.repeat(1000) } })).length).toBe(240)
   })
 })

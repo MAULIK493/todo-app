@@ -23,6 +23,13 @@ echo; echo "2/4  Linking the project…"
 [ -f supabase/config.toml ] || printf 'n\nn\n' | $SB init >/dev/null
 $SB link --project-ref "$ref"
 
+keep=n
+if $SB secrets list --project-ref "$ref" 2>/dev/null | grep -q FREE_LLM_API_KEY; then
+  read -r -p "A free AI key is already stored. Keep it? [Y/n]: " ans
+  case "${ans:-Y}" in [Nn]*) keep=n ;; *) keep=y ;; esac
+fi
+
+if [ "$keep" = "n" ]; then
 echo; echo "3/4  Your free AI key"
 echo "     Create a FREE key (no card): Groq https://console.groq.com/keys  or  Gemini https://aistudio.google.com/apikey"
 echo "     Do not attach billing, so it can never cost you anything."
@@ -39,6 +46,8 @@ printf 'FREE_LLM_PROVIDER=%s\nFREE_LLM_API_KEY=%s\n' "$provider" "$key" > "$envf
 unset key
 $SB secrets set --env-file "$envfile" --project-ref "$ref"
 rm -f "$envfile"
+
+fi
 
 echo; echo "4/4  Deploying the server functions…"
 $SB functions deploy llm-proxy --project-ref "$ref" --use-api

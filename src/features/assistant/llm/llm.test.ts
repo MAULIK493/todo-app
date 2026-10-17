@@ -170,6 +170,22 @@ describe('chat-completions adapter (Gemini, Groq, OpenRouter, OpenAI)', () => {
     }
   })
 
+  it('sends Gemini tool definitions it accepts, and names each tool result', async () => {
+    const f = vi.fn(async () => sse([oai({ choices: [{ delta: { content: 'x' }, finish_reason: 'stop' }] })]))
+    const s = createOpenAILLM({ provider: providerById('gemini'), apiKey: 'k', model: 'gemini-2.5-flash', maxTokens: 50, fetch: f as never })
+      .stream({ system: 's', tools: TOOLS, messages: [
+        { role: 'user', content: 'hi' },
+        { role: 'assistant', content: [{ type: 'tool_use', id: 'c1', name: 'list_workspaces', input: {} }] },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'c1', content: '[]' }] },
+      ] })
+    await s.final()
+    const body = JSON.parse(String((f.mock.calls[0] as unknown as [string, RequestInit])[1].body))
+    const text = JSON.stringify(body.tools)
+    expect(text).not.toContain('additionalProperties')
+    expect(body.tools.find((t: { function: { name: string } }) => t.function.name === 'list_workspaces').function.parameters).toBeUndefined()
+    expect(body.messages.at(-1)).toMatchObject({ role: 'tool', name: 'list_workspaces' })
+  })
+
   it('rejects unreadable tool arguments for a retry, and explains a bad key', async () => {
     const bad = [oai({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'a', function: { name: 'list_todos', arguments: '{"view":' } }] }, finish_reason: 'length' }] })]
     await expect(run(createOpenAILLM({ provider: groq, apiKey: 'k', model: 'm', maxTokens: 5, fetch: (async () => sse(bad)) as never }) as never)).rejects.toBeInstanceOf(RetryableLLMError)

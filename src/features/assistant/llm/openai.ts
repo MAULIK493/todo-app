@@ -1,5 +1,6 @@
 import type { AMessage, ContentBlock, LLM, LLMRequest, MsgParam } from '@shared/agent.ts'
 import { RetryableLLMError } from '@shared/agent.ts'
+import { toFunctionTool } from '@shared/toolSchema.ts'
 import { failureFromResponse, networkFailure } from './errors'
 import type { Provider } from './providers'
 import { readSse } from './sse'
@@ -18,23 +19,24 @@ export type OpenAIOptions = {
 type OAIMessage =
   | { role: 'system' | 'user'; content: string }
   | { role: 'assistant'; content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] }
-  | { role: 'tool'; tool_call_id: string; content: string }
+  | { role: 'tool'; tool_call_id: string; content: string; name?: string }
 
 /** Our conversation uses Claude-style content blocks; chat-completions APIs want tool calls and tool results as their own messages. */
-export function toOpenAIMessages(system: string, messages: MsgParam[]): OAIMessage[] {
+export function toOpenAIMessages(system: string, messages: MsgParam[], opts: { toolNames?: boolean } = {}): OAIMessage[] {
   const out: OAIMessage[] = [{ role: 'system', content: system }]
+  const names = new Map<string, string>()
   for (const m of messages) {
     if (typeof m.content === 'string') { out.push({ role: m.role, content: m.content }); continue }
     const blocks = m.content as { type: string; [k: string]: unknown }[]
     if (m.role === 'assistant') {
       const text = blocks.filter((b) => b.type === 'text').map((b) => b.text as string).join('')
-      const calls = blocks.filter((b) => b.type === 'tool_use').map((b) => ({
+      const calls = blocks.filter((b) => b.type === 'tool_use').map((b) => (names.set(b.id as string, b.name as string), {
         id: b.id as string, type: 'function' as const, function: { name: b.name as string, arguments: JSON.stringify(b.input ?? {}) },
       }))
       out.push({ role: 'assistant', content: text || null, ...(calls.length ? { tool_calls: calls } : {}) })
     } else {
       for (const b of blocks) {
-        if (b.type === 'tool_result') out.push({ role: 'tool', tool_call_id: b.tool_use_id as string, content: (b.is_error ? 'Error: ' : '') + String(b.content ?? '') })
+        if (b.type === 'tool_result') out.push({ role: 'tool', tool_call_id: b.tool_use_id as string, content: (b.is_error ? 'Error: ' : '') + String(b.content ?? ''), ...(opts.toolNames && names.has(b.tool_use_id as string) ? { name: names.get(b.tool_use_id as string) } : {}) } as OAIMessage)
         else if (b.type === 'text') out.push({ role: 'user', content: b.text as string })
       }
     }
@@ -67,8 +69,8 @@ export function createOpenAILLM(o: OpenAIOptions): LLM {
                 stream: true,
                 [o.provider.tokenParam]: o.maxTokens,
                 ...(o.provider.streamUsage ? { stream_options: { include_usage: true } } : {}),
-                messages: toOpenAIMessages(req.system, req.messages),
-                ...(req.tools.length ? { tools: req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } })) } : {}),
+                messages: toOpenAIMessages(req.system, req.messages, { toolNames: o.provider.id === 'gemini' }),
+                ...(req.tools.length ? { tools: req.tools.map((t) => toFunctionTool({ name: t.name, description: t.description, parameters: t.input_schema })) } : {}),
               }),
             })
           } catch (e) {
