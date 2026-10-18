@@ -1,7 +1,6 @@
 # Deploying
 
-Two pieces: a **Supabase project** (database, login, file storage, assistant functions) and a **static host** (Vercel or
-Netlify) for the web app.
+Two pieces: a **Supabase project** (database, login, file storage, assistant functions) and a **static host** (Vercel) for the web app.
 
 ## 1. Supabase
 
@@ -50,11 +49,10 @@ Netlify) for the web app.
 Environment variables on the host (build time): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
 - **Vercel**: import the repo; `vercel.json` sets the build, single-page routing, security headers and caching.
-- **Netlify**: import the repo; `netlify.toml` does the same.
 
 The build runs `npm run check:budget`, which fails if the downloaded size grows past `scripts/budget.json`.
 
-The content security policy in those files only allows connections to `*.supabase.co` and to the five AI services the
+The content security policy in `vercel.json` only allows connections to `*.supabase.co` and to the five AI services the
 assistant can use (Anthropic, OpenAI, Groq, OpenRouter, Google). If you use a custom Supabase domain, add it to
 `connect-src`.
 

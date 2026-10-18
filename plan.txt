@@ -96,7 +96,7 @@ Built on top of earlier phases; the animation primitives (`lib/motion.ts`, share
 - **Performance & accessibility guardrails (non-negotiable):** animate only `transform`/`opacity` (GPU), 60 fps target, lazy-load heavy effects, pause animated backgrounds when tab hidden or on battery saver, auto-lite mode on low-end devices, honour `prefers-reduced-motion` (replace with simple fades), and an in-app "Effects level" setting: Full / Balanced / Minimal / Off. Virtualized huge lists skip per-item entrance animations.
 
 ### Phase 9 — Polish & launch
-Offline cache + sync queue, export/import (JSON/CSV), accessibility pass, performance budget, error monitoring, deploy (Vercel/Netlify + Supabase).
+Offline cache + sync queue, export/import (JSON/CSV), accessibility pass, performance budget, error monitoring, deploy (Vercel + Supabase).
 
 ## Proposed structure
 ```

@@ -56,5 +56,5 @@ export const PROVIDERS: Provider[] = [
 export const providerById = (id: string): Provider => PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0]
 export const isProviderId = (v: unknown): v is ProviderId => PROVIDERS.some((p) => p.id === v)
 
-/** Hostnames the browser app may talk to for AI (also listed in the security headers in vercel.json / netlify.toml). */
+/** Hostnames the browser app may talk to for AI (also listed in the security headers in vercel.json). */
 export const PROVIDER_ORIGINS = PROVIDERS.map((p) => new URL(p.baseUrl).origin)
