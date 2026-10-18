@@ -39,6 +39,9 @@ body {
   border: 1px solid var(--border);
   backdrop-filter: blur(18px) saturate(140%);
 }
+/* .glass is outside Tailwind's layers, so it would beat bg-surface-solid and leave overlays see-through. */
+.glass.bg-surface-solid { background: var(--surface-solid); }
+@media (min-width: 768px) { .glass.md\:bg-transparent { background: transparent; } }
 .gradient-text {
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   -webkit-background-clip: text;

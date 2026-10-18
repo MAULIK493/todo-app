@@ -13,6 +13,7 @@ export type NewTodoOp = {
   description: string
   priority: number
   due_at: string | null
+  reminder_at?: string | null
   recurrence: string | null
   position: number
   tags: string[]

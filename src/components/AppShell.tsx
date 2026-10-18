@@ -25,6 +25,7 @@ import { persister } from '@/features/offline/persist'
 import { useOfflineStatus } from '@/features/offline/status'
 import { outbox, syncNow } from '@/features/offline/sync'
 import { useOfflineSync } from '@/features/offline/useOfflineSync'
+import { useReminders } from '@/features/todos/reminders'
 import { useEnvWatcher } from '@/features/appearance/useEnvWatcher'
 
 const AssistantPanel = lazy(() => import('@/features/assistant/AssistantPanel').then((m) => ({ default: m.AssistantPanel })))
@@ -46,6 +47,7 @@ export function AppShell() {
   const drawer = !desktop
   useEffect(() => trackPointer(), [])
   useOfflineSync()
+  useReminders()
   const pending = useOfflineStatus((s) => s.pending)
 
   const signOut = async () => {

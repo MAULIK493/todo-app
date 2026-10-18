@@ -7,6 +7,7 @@ import { useIsPrivate } from '@/features/security/vault'
 import { fromLocalInput, toLocalInput } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useSubtasks, useTags, useTodoMutations } from './api'
+import { ensureNotificationPermission, unlockAudio } from './reminders'
 import { AnimatedCheck } from './AnimatedCheck'
 import { PRIORITIES, type Recurrence, type Todo, type TodoStatus } from './types'
 
@@ -30,6 +31,7 @@ export function TodoDetail({ todo, onClose, onDelete }: Props) {
   const save = (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
+    if (reminder) { unlockAudio(); void ensureNotificationPermission() }
     update.mutate(
       {
         id: todo.id,

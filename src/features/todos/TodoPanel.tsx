@@ -10,6 +10,8 @@ import { useToasts } from '@/stores/toasts'
 import { useTodoMutations, useTodos } from './api'
 import { BulkBar } from './BulkBar'
 import { ListView } from './ListView'
+import { NewTodoDialog } from './NewTodoDialog'
+import type { ParsedTodo } from './parseQuickAdd'
 import { QuickAdd } from './QuickAdd'
 import type { Selection } from './selection'
 import { TodoDetail } from './TodoDetail'
@@ -37,6 +39,7 @@ export function TodoPanel({ workspaceId }: { workspaceId: string }) {
   const [searchText, setSearchText] = useState('')
   const search = useDebounced(searchText.trim(), 250)
   const [detail, setDetail] = useState<Todo | null>(null)
+  const [draft, setDraft] = useState<ParsedTodo | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Map<string, Todo>>(new Map())
   const push = useToasts((s) => s.push)
@@ -118,10 +121,16 @@ export function TodoPanel({ workspaceId }: { workspaceId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <QuickAdd
-        inputRef={addRef} allowTags={!isPrivate}
-        onAdd={(p) => create.mutate({ ...p, workspace_id: workspaceId }, { onSuccess: () => push(`Added "${p.title}"`) })}
-      />
+      <QuickAdd inputRef={addRef} allowTags={!isPrivate} onAdd={setDraft} />
+      {draft && (
+        <NewTodoDialog
+          initial={draft} allowTags={!isPrivate} saving={create.isPending} onCancel={() => setDraft(null)}
+          onSave={(p) => {
+            create.mutate({ ...p, workspace_id: workspaceId }, { onSuccess: () => push(`Added "${p.title}"`) })
+            setDraft(null)
+          }}
+        />
+      )}
       {create.error && <p className="text-sm text-red-400" role="alert">{create.error.message}</p>}
 
       <div className="flex items-center gap-2">

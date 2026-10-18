@@ -24,6 +24,7 @@ export function QuickAdd({ inputRef, onAdd, allowTags = true }: Props) {
           placeholder='Add a todo… try "call mom tomorrow 6pm !high #family"'
           className="min-w-0 flex-1 bg-transparent py-1.5 outline-none placeholder:text-muted"
         />
+        <button type="submit" disabled={!parsed} className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">Add</button>
       </div>
       {hasMeta && (
         <div className="mt-1 flex flex-wrap gap-2 px-7 text-xs text-muted">

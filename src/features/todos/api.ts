@@ -204,23 +204,24 @@ export function useTodoMutations() {
   const create = useMutation({
     // Must run even without a connection: that is how it reaches the offline queue.
     networkMode: 'always',
-    mutationFn: async ({ tags, ...row }: Partial<ParsedTodo> & { workspace_id: string; title: string; parent_id?: string }) => {
+    mutationFn: async ({ tags, ...row }: Partial<ParsedTodo> & { workspace_id: string; title: string; parent_id?: string; description?: string; reminder_at?: string | null }) => {
       const c = cipherFor(row.workspace_id)
       const id = crypto.randomUUID()
       const position = -Date.now() / 1000 // same scale as the database default: newest on top
       const title = c ? await c.text('title', row.title) : row.title
+      const description = row.description ? (c ? await c.text('description', row.description) : row.description) : ''
       // Tag names would be visible to the server, so private workspaces have no tags.
       const op: OutboxOp = {
         kind: 'create_todo',
         todo: {
-          id, workspace_id: row.workspace_id, parent_id: row.parent_id ?? null, title, description: '', priority: row.priority ?? 0,
-          due_at: row.due_at ?? null, recurrence: row.recurrence ?? null, position, tags: c ? [] : (tags ?? []),
+          id, workspace_id: row.workspace_id, parent_id: row.parent_id ?? null, title, description, priority: row.priority ?? 0,
+          due_at: row.due_at ?? null, reminder_at: row.reminder_at ?? null, recurrence: row.recurrence ?? null, position, tags: c ? [] : (tags ?? []),
         },
       }
       if (!row.parent_id) {
         addOptimistic({
-          id, workspace_id: row.workspace_id, parent_id: null, title: row.title, description: '', status: 'open', priority: (row.priority ?? 0) as Todo['priority'],
-          due_at: row.due_at ?? null, reminder_at: null, recurrence: row.recurrence ?? null, tags: c ? [] : (tags ?? []), position, completed_at: null,
+          id, workspace_id: row.workspace_id, parent_id: null, title: row.title, description: row.description ?? '', status: 'open', priority: (row.priority ?? 0) as Todo['priority'],
+          due_at: row.due_at ?? null, reminder_at: row.reminder_at ?? null, recurrence: row.recurrence ?? null, tags: c ? [] : (tags ?? []), position, completed_at: null,
           created_at: new Date().toISOString(),
         })
       }
