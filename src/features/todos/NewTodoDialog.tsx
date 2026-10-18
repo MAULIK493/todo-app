@@ -80,7 +80,7 @@ export function NewTodoDialog({ initial, allowTags, saving, onSave, onCancel }: 
             <input className={field} value={tags} onChange={(e) => setTags(e.target.value)} />
           </label>
         )}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="sticky bottom-0 -mx-6 -mb-6 flex justify-end gap-2 border-t border-border bg-surface-solid px-6 py-3 pr-24 md:pr-6">
           <button type="button" onClick={onCancel} className="rounded-lg px-4 py-2 text-sm hover:bg-white/10">Cancel</button>
           <button type="submit" disabled={!title.trim() || saving} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Save todo</button>
         </div>

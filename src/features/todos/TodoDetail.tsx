@@ -94,11 +94,11 @@ export function TodoDetail({ todo, onClose, onDelete }: Props) {
             <datalist id="known-tags">{knownTags.map((t) => <option key={t} value={t} />)}</datalist>
           </label>}
           {update.error && <p className="text-sm text-red-400" role="alert">{update.error.message}</p>}
-          <div className="flex justify-between pt-2">
+          <div className="sticky bottom-0 -mx-5 -mb-5 flex items-center justify-between gap-3 border-t border-border bg-surface-solid px-5 py-3 pr-24 md:pr-5">
             <button type="button" onClick={() => onDelete(todo)} className="flex items-center gap-1 text-sm text-red-400">
               <Trash2 size={14} /> Delete
             </button>
-            <button disabled={update.isPending} className="rounded-lg bg-accent px-4 py-2 text-white disabled:opacity-60">Save</button>
+            <button disabled={update.isPending} className="rounded-lg bg-accent px-6 py-2.5 font-medium text-white disabled:opacity-60">Save</button>
           </div>
         </form>
         {!todo.parent_id && <Subtasks parent={todo} />}
