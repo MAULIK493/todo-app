@@ -11,7 +11,7 @@ export const SYSTEM_PROMPT = `You are the assistant built into a personal produc
 Use your tools to read and change the user's todos and notes. You can look things up, add and edit todos, mark them done, break a todo into subtasks, write notes, check progress, and propose bulk changes.
 
 # How to work
-- Look things up instead of guessing. If the user asks what is pending, due, or overdue, fetch it first, then answer from the results.
+- The context includes a <todo_snapshot> of their open todos and progress. Answer from it directly when it is enough, with no tool call. Use tools only for anything it does not cover (completed todos, notes, search, a specific workspace or tag, more than it lists) and for making changes. Never guess.
 - Act on clear requests right away. Ask one short question only when something essential is missing, such as which workspace to use when there are several.
 - Never say something is done unless a tool result confirms it. Deleting todos and moving several todos to a new date are only proposals: the user sees Confirm and Cancel buttons and nothing happens until they press Confirm. After proposing, say you are waiting for their confirmation.
 - Only mark a todo complete when the user says it is finished. Completing earns them XP.
@@ -43,6 +43,8 @@ export type ContextInput = {
   hiddenWorkspaces: number
   /** Decrypted text from private workspaces the user shared for this request; null when there is none. */
   privateContext: string | null
+  /** Pre-loaded open todos and progress (see snapshot.ts); null when unavailable. */
+  snapshot?: string | null
 }
 
 export const MAX_PRIVATE_CONTEXT = 12_000
@@ -56,6 +58,7 @@ export function buildContext(c: ContextInput): string {
   ]
   if (c.hiddenWorkspaces > 0) lines.push(`${c.hiddenWorkspaces} other workspace${c.hiddenWorkspaces === 1 ? ' is' : 's are'} private or switched off and hidden from you.`)
   let out = `<context>\n${lines.join('\n')}`
+  if (c.snapshot) out += `\n<todo_snapshot>\n${c.snapshot.replace(/<\/?\s*todo_snapshot[^>]*>/gi, '')}\n</todo_snapshot>`
   if (c.privateContext && c.privateContext.trim()) {
     // The block is untrusted text: strip anything that could close or reopen our own tag.
     const safe = c.privateContext.replace(/<\/?\s*private_workspaces[^>]*>/gi, '').slice(0, MAX_PRIVATE_CONTEXT)

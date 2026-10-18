@@ -2,6 +2,7 @@ import { runAgent } from '@shared/agent.ts'
 import { isValidTimeZone } from '@shared/dates.ts'
 import { createDb, createStore } from '@shared/db.ts'
 import { parseChatBody, trimHistory } from '@shared/http.ts'
+import { loadSnapshot } from '@shared/snapshot.ts'
 import { buildContext, SYSTEM_PROMPT, withContext } from '@shared/prompt.ts'
 import { TOOLS } from '@shared/schemas.ts'
 import { allowedWorkspaces, createToolExecutor } from '@shared/tools.ts'
@@ -39,21 +40,23 @@ export async function runChat(o: {
 
   const db = createDb(supabase)
   const store = createStore(supabase)
-  const [all, access, profile] = await Promise.all([db.workspaces(), db.workspaceAccess(), db.profile()])
+  // Everything the first model call needs is fetched at once, not one after another.
+  const historyP = body.conversationId ? store.history(body.conversationId, HISTORY_MESSAGES) : Promise.resolve(null)
+  const [all, access, profile, stored] = await Promise.all([db.workspaces(), db.workspaceAccess(), db.profile(), historyP])
   const tz = isValidTimeZone(profile.timezone) ? profile.timezone : 'UTC'
   const visible = allowedWorkspaces(all, access)
   const now = new Date()
 
   let history: { role: 'user' | 'assistant'; content: string }[] = []
   if (body.conversationId) {
-    const stored = await store.history(body.conversationId, HISTORY_MESSAGES)
     if (!stored) throw new AssistantError('bad_request', 'That conversation was not found.')
     history = trimHistory(stored, HISTORY_CHARS)
   }
 
+  const snapshot = await loadSnapshot(db, visible, tz, now)
   const sharedPrivate = body.privateContext && body.privateContext.trim() ? body.privateContext : null
   const context = buildContext({
-    now, tz, tone: profile.tone, workspaceNames: visible.map((w) => w.name), hiddenWorkspaces: all.length - visible.length, privateContext: sharedPrivate,
+    now, tz, tone: profile.tone, workspaceNames: visible.map((w) => w.name), hiddenWorkspaces: all.length - visible.length, privateContext: sharedPrivate, snapshot,
   })
 
   const llm = makeModel(config, { maxTokens: config.mode === 'own' && providerById(config.provider).api === 'anthropic' ? 8192 : 4096, signal: o.signal })
