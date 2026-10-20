@@ -103,13 +103,15 @@ export function AppShell() {
       <RewardWatcher />
       <FlyerHost />
       <CelebrationHost />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <main id="main" tabIndex={-1} className="min-h-0 outline-none p-3 sm:p-4 min-w-0 flex-1 overflow-auto">
         <OfflineBanner onSyncNow={() => void syncNow()} />
         <ErrorBoundary scope="page" resetKey={location.pathname}>
           <PageTransition routeKey={routeKey(location.pathname)}>{outlet}</PageTransition>
         </ErrorBoundary>
-        <p className="mt-8 pb-2 text-center text-xs text-white/40">Created by Maulik Kesarwani</p>
       </main>
+      <p className="shrink-0 px-3 pb-2 text-center text-xs text-white/50">Created by Maulik Kesarwani</p>
+      </div>
       <AnimatePresence>{assistantOpen && <Suspense fallback={null}><AssistantPanel /></Suspense>}</AnimatePresence>
       <FloatingMic />
     </div>
