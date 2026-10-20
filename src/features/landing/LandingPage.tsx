@@ -206,7 +206,7 @@ function Footer() {
         <div><p className={head}>Account</p><Link className={a} to="/login">Sign in</Link><Link className={a} to={START}>Create account</Link></div>
         <div><p className={head}>Good to know</p><span className={a}>Works on phone and desktop</span><span className={a}>Installable app</span></div>
       </div>
-      <p className="border-t border-white/10 py-5 text-center text-xs text-white/40">© {new Date().getFullYear()} Todo App</p>
+      <p className="border-t border-white/10 py-5 text-center text-xs text-white/40">© {new Date().getFullYear()} Todo App · Created by Maulik Kesarwani</p>
     </footer>
   )
 }

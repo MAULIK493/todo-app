@@ -108,6 +108,7 @@ export function AppShell() {
         <ErrorBoundary scope="page" resetKey={location.pathname}>
           <PageTransition routeKey={routeKey(location.pathname)}>{outlet}</PageTransition>
         </ErrorBoundary>
+        <p className="mt-8 pb-2 text-center text-xs text-white/40">Created by Maulik Kesarwani</p>
       </main>
       <AnimatePresence>{assistantOpen && <Suspense fallback={null}><AssistantPanel /></Suspense>}</AnimatePresence>
       <FloatingMic />
