@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const signIn = vi.fn(), signUp = vi.fn()
 vi.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: (a: unknown) => signIn(a), signUp: (a: unknown) => signUp(a) } }, isSupabaseConfigured: true }))
+vi.stubEnv('VITE_GOOGLE_AUTH', '') // the test must not depend on the developer's local .env
 const { LoginPage } = await import('./LoginPage')
 
 beforeEach(() => { signIn.mockReset().mockResolvedValue({ error: null, data: { session: {} } }); signUp.mockReset().mockResolvedValue({ error: null, data: { session: null } }) })
