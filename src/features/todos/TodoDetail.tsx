@@ -56,13 +56,14 @@ export function TodoDetail({ todo, onClose, onDelete }: Props) {
       <motion.div className="fixed inset-0 z-[44] bg-black/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.aside
         role="dialog" aria-label="Todo details" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={spring}
-        className="glass fixed inset-y-0 right-0 z-[45] h-dvh w-full max-w-md overflow-y-auto overscroll-contain bg-surface-solid p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]"
+        className="glass fixed inset-y-0 right-0 z-[45] flex h-dvh w-full max-w-md flex-col overflow-hidden bg-surface-solid"
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center justify-between px-5 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))]">
           <h2 className="text-lg font-semibold">Details</h2>
           <button aria-label="Close" onClick={onClose} className="rounded-lg p-2 hover:bg-white/10"><X size={18} /></button>
         </div>
-        <form onSubmit={save} className="space-y-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
+        <form id="todo-detail-form" onSubmit={save} className="space-y-3">
           <input className={field} value={title} maxLength={500} required aria-label="Title" onChange={(e) => setTitle(e.target.value)} />
           <textarea className={field} rows={4} value={description} maxLength={20000} placeholder="Description" aria-label="Description" onChange={(e) => setDescription(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
@@ -94,15 +95,16 @@ export function TodoDetail({ todo, onClose, onDelete }: Props) {
             <datalist id="known-tags">{knownTags.map((t) => <option key={t} value={t} />)}</datalist>
           </label>}
           {update.error && <p className="text-sm text-red-400" role="alert">{update.error.message}</p>}
-          <div className="sticky bottom-0 -mx-5 -mb-5 flex items-center justify-between gap-3 border-t border-border bg-surface-solid px-5 py-3 pr-24 md:pr-5">
-            <button type="button" onClick={() => onDelete(todo)} className="flex items-center gap-1 text-sm text-red-400">
-              <Trash2 size={14} /> Delete
-            </button>
-            <button disabled={update.isPending} className="rounded-lg bg-accent px-6 py-2.5 font-medium text-white disabled:opacity-60">Save</button>
-          </div>
         </form>
         {!todo.parent_id && <Subtasks parent={todo} />}
         <LinkedNotes todo={todo} />
+        </div>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-surface-solid px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button type="button" onClick={() => onDelete(todo)} className="flex items-center gap-1 text-sm text-red-400">
+            <Trash2 size={14} /> Delete
+          </button>
+          <button type="submit" form="todo-detail-form" disabled={update.isPending} className="rounded-lg bg-accent px-6 py-2.5 font-medium text-white disabled:opacity-60">Save</button>
+        </div>
       </motion.aside>
     </>
   )
