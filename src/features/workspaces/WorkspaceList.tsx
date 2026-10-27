@@ -190,6 +190,9 @@ function NewWorkspaceForm(props: { onSubmit: (name: string, color: string) => vo
           />
         ))}
       </div>
+      <p className="px-1 text-xs text-muted">
+        Stored readable on our server. For sensitive notes, make the workspace private afterwards (encrypted on your device).
+      </p>
       <div className="flex justify-end gap-2 text-sm">
         <button type="button" onClick={props.onCancel} className="px-2 text-muted">Cancel</button>
         <button disabled={!name.trim() || props.busy} className="rounded bg-accent px-3 py-1 text-white disabled:opacity-50">Create</button>

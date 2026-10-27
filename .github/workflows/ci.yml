@@ -14,6 +14,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - name: Check dependencies for known vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
       - run: npx tsc -b
       - run: npm run lint
       - run: npm test
